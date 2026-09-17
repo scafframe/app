@@ -1,0 +1,49 @@
+<script>
+/**
+ * FeatureActionsClient.html — cliente das ações de botão com backend.
+ * Define window.sfFeature(action, payload, opts). Idempotente: só define uma vez.
+ *   opts.pending  texto do toast enquanto processa (default "Processando...")
+ *   opts.success  texto de sucesso (default usa data.message)
+ *   opts.openUrl  se true e o retorno tiver data.url, abre em nova aba
+ *   opts.then     callback(data) no sucesso
+ */
+(function () {
+  if (window.sfFeature) return;
+
+  function feedback(msg, ok) {
+    var t = document.getElementById('sf-feature-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'sf-feature-toast';
+      t.setAttribute('role', 'status');
+      t.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);' +
+        'padding:10px 18px;border-radius:6px;color:#fff;z-index:99999;font-size:.9em;' +
+        'max-width:90vw;box-shadow:0 6px 18px rgba(0,0,0,.3)';
+      document.body.appendChild(t);
+    }
+    t.style.background = (ok === false) ? '#c0392b' : '#2d7d46';
+    t.textContent = msg;
+    t.style.display = 'block';
+    window.clearTimeout(t._h);
+    t._h = window.setTimeout(function () { t.style.display = 'none'; }, 4600);
+  }
+
+  window.sfFeature = function (action, payload, opts) {
+    opts = opts || {};
+    feedback(opts.pending || 'Processando...', true);
+    if (typeof Api === 'undefined' || typeof Api.call !== 'function') {
+      feedback('Disponível apenas no aplicativo publicado.', false);
+      return;
+    }
+    Api.call('feature.run', { featureAction: action, payload: payload || {} })
+      .then(function (data) {
+        if (opts.openUrl && data && data.url) { window.open(data.url, '_blank'); }
+        feedback(opts.success || (data && data.message) || 'Concluído.', true);
+        if (typeof opts.then === 'function') opts.then(data);
+      })
+      .catch(function (err) {
+        feedback((err && err.message) || 'Erro no servidor.', false);
+      });
+  };
+})();
+</script>

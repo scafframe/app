@@ -1,0 +1,550 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<!--
+ ============================================================
+ PROJETO  : Scafframe (Cine Clube Horizontes Animados)
+ ESCOLA   : Escola Classe 115 Norte — SEEDF / Brasília-DF
+ ARQUIVO  : MovieReviewForm.html
+ VERSÃO   : 1.1.0
+ ============================================================
+
+ DESCRIÇÃO PRINCIPAL:
+   Interface para preenchimento do questionário de 25 questões sobre 
+   o filme assistido. Coleta dados sobre o arco narrativo e personagens 
+   para alimentar a geração de crítica semiautomatizada via Gemini API.
+
+ FUNCIONALIDADES:
+   - Questionário dinâmico com 25 questões divididas por seções.
+   - Envio das respostas para o GeminiService.gs.
+   - Exibição da crítica gerada para revisão e salvamento.
+   - Integração com a aba 'Questionarios' da planilha.
+
+ INTEGRAÇÕES COM O BACKEND (google.script.run):
+   - GeminiService.gs : generateReview(answers, movieTitle)
+   - QuestionarioController.gs : saveReview(data)
+
+ EVENTOS E INTERAÇÕES:
+   - submit (form) : Dispara a geração da crítica.
+   - click (save) : Salva a crítica final na planilha.
+
+ BOAS PRÁTICAS APLICADAS:
+   - Divisão do formulário em seções para não sobrecarregar o usuário.
+   - Validação de campos obrigatórios.
+   - Feedback visual durante o processamento da IA.
+ ============================================================
+-->
+
+<div id='movie-review-view'>
+  <h2>Questionário de Crítica Analítica — Scafframe</h2>
+  <p>Preencha as 25 questões abaixo para gerar a crítica semiautomatizada do filme.</p>
+  <figure class="scafframe-analysis-guide">
+    <img class="scafframe-asset scafframe-asset--lenses" data-asset-file="lentes_analise.svg" alt="Lentes de análise para narrativa, personagem, som, enquadramento, tema, representação e ausências" hidden>
+    <figcaption>Troque de lente ao justificar suas respostas: forma, som, tema e ausências também constroem sentido.</figcaption>
+    <p class="scafframe-assets-status" data-asset-status role="status" aria-live="polite"></p>
+  </figure>
+  
+  <form id='review-form' data-asset-background="cartas_perguntas.webp">
+    <div class='form-section'>
+      <h3>I. Identificação</h3>
+      <div class='form-group'><label for='rv-sessao'>Sessão *</label><select id='rv-sessao' required><option value=''>Selecione...</option></select></div>
+      <div class='form-group'><label for='rv-aluno'>Estudante *</label><select id='rv-aluno' required><option value=''>Selecione...</option></select></div>
+      <div class='form-group'><label for='rv-filme'>Filme *</label><select id='rv-filme' required><option value=''>Selecione...</option></select></div>
+    </div>
+
+    <div class='form-section'>
+      <h3>II. Arco Narrativo (Questões 1-12)</h3>
+      <figure class="scafframe-analysis-guide">
+        <img class="scafframe-asset scafframe-asset--timeline" data-asset-file="linha_tempo_narrativa.svg" alt="Linha narrativa flexível para início, confronto e resolução" hidden>
+        <figcaption>A linha ajuda a localizar mudanças, sem impor que toda história siga uma fórmula única.</figcaption>
+      </figure>
+      <div id='arco-questions'>
+        <!-- Gerado via JS para manter o HTML limpo -->
+      </div>
+    </div>
+
+    <div class='form-section'>
+      <h3>III. Caracterização dos Personagens (Questões 13-25)</h3>
+      <div id='personagem-questions'>
+        <!-- Gerado via JS para manter o HTML limpo -->
+      </div>
+    </div>
+
+    <div class='form-actions'>
+      <button type='submit' id='btn-generate-review' disabled>Gerar Crítica via Gemini IA</button>
+      <button type='button' onclick="Router.navigate('/filmes')">Cancelar</button>
+    </div>
+  </form>
+  <p id='review-status' role='status' aria-live='polite'>Carregando sessões, estudantes e filmes…</p>
+  <button id='review-retry' type='button' hidden>Tentar carregar cadastros novamente</button>
+
+  <div id='review-result' class='hidden'>
+    <h3>Crítica Gerada pela IA</h3>
+    <div id='review-text' contenteditable='true' style='border:1px solid #ccc; padding:10px; margin-bottom:10px; background:#fff;'></div>
+    <label><input id='review-confirmed' type='checkbox'> Conferi a crítica com o estudante e aprovo este texto.</label>
+    <button id='btn-save-review' type='button'>Confirmar e Salvar na Planilha</button>
+    <button id='btn-discussion-guide' type='button'><i class="material-icons cdx-mi" aria-hidden="true">record_voice_over</i> Gerar roteiro da roda de conversa</button>
+    <div id="review-celebration" class="scafframe-review-celebration hidden" role="status" aria-live="polite">
+      <img class="scafframe-asset scafframe-asset--seal" data-asset-file="selo_critica_revisada.svg" data-asset-deferred alt="Selo Crítica revisada, com argumento fundamentado" hidden>
+      <p><strong>Crítica revisada.</strong> O reconhecimento celebra evidências e revisão, não uma opinião única sobre o filme.</p>
+    </div>
+  </div>
+
+  <div id='discussion-result' class='hidden'>
+    <h3>Roda de Conversa — Perguntas para a turma</h3>
+    <p style='margin-bottom:8px;'>Quatro perguntas socráticas, em progressão: observar → interpretar → conectar com a vida → avaliar. Não há resposta certa.</p>
+    <ol id='discussion-questions' style='padding-left:20px;'></ol>
+    <small id='discussion-source'></small>
+  </div>
+</div>
+
+<script>
+  (function() {
+    var generatedAnswers = null;
+    var generatedLinks = null;
+    var revision = 0;
+    var generating = false;
+    var saving = false;
+    var status = document.getElementById('review-status');
+    var generateButton = document.getElementById('btn-generate-review');
+    var retryButton = document.getElementById('review-retry');
+    var confirmation = document.getElementById('review-confirmed');
+    var sessions = [];
+
+    function links() {
+      return { sessaoId: document.getElementById('rv-sessao').value,
+        alunoId: document.getElementById('rv-aluno').value,
+        filmeId: document.getElementById('rv-filme').value };
+    }
+
+    function invalidateReview() {
+      revision += 1;
+      generatedAnswers = null;
+      generatedLinks = null;
+      confirmation.checked = false;
+      document.getElementById('review-result').classList.add('hidden');
+      document.getElementById('discussion-result').classList.add('hidden');
+      document.getElementById('review-celebration').classList.add('hidden');
+    }
+
+    function optionValue(record) { return record.ID || record.id || ''; }
+    function fillSelect(id, records, label) {
+      var select = document.getElementById(id);
+      while (select.options.length > 1) select.remove(1);
+      (records || []).forEach(function(record) {
+        var option = document.createElement('option');
+        option.value = optionValue(record);
+        option.textContent = label(record);
+        select.appendChild(option);
+      });
+    }
+
+    function loadChoices() {
+      retryButton.hidden = true;
+      generateButton.disabled = true;
+      status.textContent = 'Carregando sessões, estudantes e filmes…';
+      return Promise.all([
+      Api.call('session.list', {}),
+      Api.call('student.list', {}),
+      Api.call('movie.list', {})
+    ]).then(function(results) {
+      sessions = results[0] || [];
+      fillSelect('rv-sessao', results[0], function(item) {
+        return [item.Data, item.TituloFilme, item.Turma].filter(Boolean).join(' — ') || optionValue(item);
+      });
+      fillSelect('rv-aluno', results[1], function(item) {
+        return [item.Nome, item.Turma].filter(Boolean).join(' — ') || optionValue(item);
+      });
+      fillSelect('rv-filme', results[2], function(item) {
+        return item.Titulo || optionValue(item);
+      });
+      var ready = results.every(function(rows) { return Array.isArray(rows) && rows.length > 0; });
+      generateButton.disabled = !ready;
+      retryButton.hidden = ready;
+      status.textContent = ready ? 'Escolha os vínculos e responda às 25 questões.' :
+        'Cadastre pelo menos uma sessão, um estudante e um filme; depois tente carregar novamente.';
+    }).catch(function() {
+      status.textContent = 'Não foi possível carregar os cadastros. Suas respostas foram preservadas.';
+      retryButton.hidden = false;
+    });
+    }
+    retryButton.addEventListener('click', loadChoices);
+    loadChoices();
+
+    document.getElementById('rv-sessao').addEventListener('change', function() {
+      var selected = sessions.filter(function(item) { return String(optionValue(item)) === this.value; }, this)[0];
+      document.getElementById('rv-filme').value = selected ? String(selected.FilmeID || '') : '';
+      invalidateReview();
+    });
+
+    // Cada questão traz um ANDAIME DE ESCRITA (hint): um apoio que modela a
+    // resposta sem entregá-la, e um exemplo de início de frase (starter).
+    // As 25 questões e os nomes q1..q25 são fixos (esquema da aba Questionarios).
+    var questionsArco = [
+      { q: "Como o filme começa?", hint: "Descreva a primeira cena: o que vemos e ouvimos antes de qualquer fala?", starter: "O filme abre com..." },
+      { q: "Qual o principal conflito?", hint: "Conflito é o problema que move a história. Quem quer o quê, e o que impede?", starter: "O grande problema da história é..." },
+      { q: "Onde a história se passa?", hint: "Pense no lugar E na época. O cenário combina com o clima da história?", starter: "A história acontece em..." },
+      { q: "Quem é o protagonista?", hint: "É o personagem que a câmera mais acompanha e que mais muda.", starter: "O protagonista é..." },
+      { q: "O que o protagonista deseja?", hint: "Diferencie o que ele DIZ querer do que ele realmente precisa.", starter: "Ele(a) deseja..." },
+      { q: "Qual o maior obstáculo?", hint: "Pode ser uma pessoa, a natureza, uma regra ou um medo interno.", starter: "O que mais atrapalha é..." },
+      { q: "Existe um vilão ou força opositora?", hint: "Nem todo filme tem vilão. Às vezes o oponente é uma situação ou um sentimento.", starter: "A força que se opõe ao protagonista é..." },
+      { q: "Qual o ponto de virada?", hint: "Procure o momento em que a história muda de direção e não dá mais para voltar atrás.", starter: "Tudo muda quando..." },
+      { q: "Como o conflito se intensifica?", hint: "Liste o que vai dando errado, do problema menor ao maior.", starter: "As coisas pioram quando..." },
+      { q: "Qual o momento de maior tensão?", hint: "É a cena em que você ficou mais preso à tela. O que estava em jogo ali?", starter: "O momento mais tenso é..." },
+      { q: "Como o conflito é resolvido?", hint: "O protagonista resolve sozinho, com ajuda, ou a solução vem de fora?", starter: "No final, o problema se resolve quando..." },
+      { q: "Qual a mensagem final?", hint: "O que a história quis dizer sobre a vida? Evite respostas de uma palavra só.", starter: "Para mim, o filme quis mostrar que..." }
+    ];
+    var questionsPers = [
+      { q: "Como o protagonista se sente no início?", hint: "Observe o rosto, a postura e o tom de voz nas primeiras cenas.", starter: "No começo, ele(a) parece se sentir..." },
+      { q: "Qual sua principal virtude?", hint: "Qual qualidade dele(a) ajuda a resolver a história?", starter: "Sua maior qualidade é..." },
+      { q: "Qual seu maior defeito?", hint: "Que atitude dele(a) cria ou piora os problemas?", starter: "Seu maior defeito é..." },
+      { q: "Como ele se relaciona com os outros?", hint: "Escolha uma cena de interação e descreva o que ela revela.", starter: "Com os outros personagens, ele(a)..." },
+      { q: "Ele muda ao longo da história?", hint: "Compare a primeira e a última cena dele(a): o que ficou diferente?", starter: "Comparando o início e o fim, ele(a)..." },
+      { q: "O que ele aprende?", hint: "A lição aparece em alguma fala ou atitude perto do final?", starter: "Ao longo da jornada, ele(a) aprende que..." },
+      { q: "Quem o ajuda na jornada?", hint: "Pense em quem dá apoio prático e em quem dá apoio emocional.", starter: "Quem mais o(a) ajuda é..." },
+      { q: "Existe um mentor?", hint: "Mentor é quem ensina ou aconselha. Pode ser inesperado: uma criança, um animal...", starter: "O papel de mentor é de..." },
+      { q: "Como o antagonista é caracterizado?", hint: "Visual, voz, música quando aparece: como o filme nos faz sentir algo por ele?", starter: "O antagonista é mostrado como..." },
+      { q: "Quais emoções o protagonista demonstra?", hint: "Vá além de feliz/triste: medo, vergonha, orgulho, ciúme, saudade...", starter: "Ao longo do filme, ele(a) demonstra..." },
+      { q: "Como ele lida com a falha?", hint: "Lembre de uma cena em que algo deu errado. Ele desiste, tenta de novo, pede ajuda?", starter: "Quando falha, ele(a)..." },
+      { q: "Qual sua ação mais corajosa?", hint: "Coragem nem sempre é luta: pode ser pedir desculpas ou dizer a verdade.", starter: "Seu ato mais corajoso é quando..." },
+      { q: "Como ele está no final do filme?", hint: "Compare com a resposta da questão 13: o que mudou por dentro e por fora?", starter: "No final, ele(a) está..." }
+    ];
+
+    function renderQuestions(containerId, list, startNum) {
+      var container = document.getElementById(containerId);
+      list.forEach(function(item, i) {
+        var div = document.createElement('div');
+        div.className = 'form-group';
+        div.innerHTML = '<label>' + (startNum + i) + '. ' + item.q + ' *</label>' +
+                        '<p class="question-hint">' + item.hint + '</p>' +
+                        '<input inputmode="text" type="text" maxlength="1000" name="q' + (startNum + i) + '" required placeholder="' +
+                        item.starter.replace(/"/g, '&quot;') + '" autocomplete="name">';
+        container.appendChild(div);
+      });
+    }
+
+    renderQuestions('arco-questions', questionsArco, 1);
+    renderQuestions('personagem-questions', questionsPers, 13);
+
+    document.getElementById('review-form').addEventListener('input', function() {
+      generatedAnswers = null;
+      invalidateReview();
+    });
+    document.getElementById('review-form').addEventListener('change', invalidateReview);
+    document.getElementById('review-text').addEventListener('input', function() { confirmation.checked = false; });
+
+    document.getElementById('review-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (generating || saving || generateButton.disabled || !this.reportValidity()) return;
+      var formData = new FormData(this);
+      var answers = {};
+      formData.forEach((value, key) => { answers[key] = value; });
+      var movieTitle = document.getElementById('rv-filme').options[document.getElementById('rv-filme').selectedIndex].text;
+      invalidateReview();
+      var requestRevision = revision;
+      var requestLinks = links();
+      generating = true;
+      generateButton.disabled = true;
+      status.textContent = 'Gerando rascunho. Você poderá revisá-lo antes de salvar.';
+
+      showLoader();
+      // O Api/ClientCall já desempacota o envelope: .then recebe o data direto
+      // e falhas de negócio caem no .catch (o Api também exibe o ModalAlert).
+      Api.call('gemini.generateReview', { answers: answers, movieTitle: movieTitle })
+        .then(function(data) {
+          if (requestRevision !== revision) {
+            status.textContent = 'As respostas ou os vínculos mudaram. Gere uma nova crítica.';
+            return;
+          }
+          generatedAnswers = answers;
+          generatedLinks = requestLinks;
+          var texto = (data && data.review) || (typeof data === 'string' ? data : '');
+          document.getElementById('review-text').innerText = texto;
+          if (data && data.note) {
+            ModalAlert.show('info', 'Aviso', data.note);
+          }
+          document.getElementById('review-result').classList.remove('hidden');
+          status.textContent = 'Revise o rascunho e marque a confirmação antes de salvar.';
+          window.scrollTo(0, document.getElementById('review-result').offsetTop);
+        })
+        .catch(function() { status.textContent = 'Não foi possível gerar a crítica. Suas respostas foram preservadas.'; })
+        .finally(function() { generating = false; generateButton.disabled = false; });
+    });
+
+    // Roteiro de discussão socrática para a roda de conversa do cineclube
+    // (ensino dialógico), a partir das mesmas respostas do questionário.
+    document.getElementById('btn-discussion-guide').addEventListener('click', function() {
+      if (this.disabled || saving || !generatedAnswers) return;
+      var requestRevision = revision;
+      var formData = new FormData(document.getElementById('review-form'));
+      var answers = {};
+      formData.forEach(function(value, key) { answers[key] = value; });
+      var select = document.getElementById('rv-filme');
+      var movieTitle = select.options[select.selectedIndex] ? select.options[select.selectedIndex].text : '';
+
+      var button = this;
+      button.disabled = true;
+      Api.call('gemini.discussionGuide', { answers: answers, movieTitle: movieTitle })
+        .then(function(data) {
+          button.disabled = false;
+          if (requestRevision !== revision) return;
+          var list = document.getElementById('discussion-questions');
+          list.innerHTML = '';
+          ((data && data.questions) || []).forEach(function(q) {
+            var li = document.createElement('li');
+            li.textContent = q;
+            list.appendChild(li);
+          });
+          document.getElementById('discussion-source').textContent = (data && data.source === 'gemini')
+            ? 'Perguntas geradas pela IA a partir das respostas da turma.'
+            : 'Roteiro local (IA não configurada) — igualmente válido para a roda.';
+          document.getElementById('discussion-result').classList.remove('hidden');
+          window.scrollTo(0, document.getElementById('discussion-result').offsetTop);
+        })
+        .catch(function() { button.disabled = false; });
+    });
+
+    document.getElementById('btn-save-review').addEventListener('click', function() {
+      var text = document.getElementById('review-text').innerText;
+      var button = this;
+      if (saving || button.disabled) return;
+      if (!generatedAnswers) {
+        ModalAlert.show('warning', 'Revise o percurso', 'Gere a crítica a partir das 25 respostas antes de salvar.');
+        return;
+      }
+      if (!confirmation.checked || !text.trim()) {
+        ModalAlert.show('warning', 'Revisão humana', 'Confira o texto e marque a confirmação antes de salvar.');
+        return;
+      }
+      saving = true;
+      button.disabled = true;
+      var controls = document.getElementById('review-form').querySelectorAll('input, select, button');
+      var disabledBefore = Array.from(controls).map(function(control) { return control.disabled; });
+      controls.forEach(function(control) { control.disabled = true; });
+      document.getElementById('review-text').contentEditable = 'false';
+      status.textContent = 'Salvando a crítica revisada…';
+      Api.call('questionario.save', {
+        sessaoId: generatedLinks.sessaoId,
+        alunoId: generatedLinks.alunoId,
+        filmeId: generatedLinks.filmeId,
+        answers: generatedAnswers,
+        criticaGemini: text,
+        humanReviewed: true
+      }).then(function() {
+        ModalAlert.show('success', 'Sucesso', 'Crítica salva com sucesso!');
+        document.getElementById('review-celebration').classList.remove('hidden');
+        if (window.ScafframeAssets) window.ScafframeAssets.reveal('selo_critica_revisada.svg');
+        Router.navigate('/filmes');
+      }).catch(function() {
+        button.disabled = false;
+        status.textContent = 'Não recebemos confirmação. Preserve este texto e confira a aba Questionarios antes de reenviar.';
+      }).finally(function() {
+        saving = false;
+        controls.forEach(function(control, index) { control.disabled = disabledBefore[index]; });
+        document.getElementById('review-text').contentEditable = 'true';
+      });
+    });
+  })();
+</script>
+

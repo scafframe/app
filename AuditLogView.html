@@ -1,0 +1,269 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<!--
+ ============================================================
+ PROJETO  : Cine Clube Horizontes Animados
+ ESCOLA   : Escola Classe 115 Norte — SEEDF / Brasília-DF
+ ARQUIVO  : AuditLogView.html
+ VERSÃO   : 1.0.0
+ ============================================================
+
+ DESCRIÇÃO PRINCIPAL:
+   Tela de visualização da trilha de auditoria do sistema. Registra todas as operações de criação, edição, exclusão e overrides de seleção com usuário, data/hora e dados alterados. Acessível apenas para Coordenação.
+
+ FUNCIONALIDADES:
+   - Tabela de eventos de auditoria com: Data/Hora, Usuário, Ação, Entidade, Detalhes.
+   - Filtros por usuário, tipo de ação e período.
+   - Destaque visual para overrides de seleção e exclusões.
+   - Exportação da trilha em CSV para arquivamento.
+   - Paginação de 20 registros por página.
+
+ INTEGRAÇÕES COM O BACKEND (google.script.run):
+   - AuditLog.gs : Ação 'audit.getLog' para carregar os registros.
+   - ExportService.gs : Ação 'export.auditLog' para exportar em CSV.
+
+ EVENTOS E INTERAÇÕES:
+   - DOMContentLoaded  : Carrega os registros de auditoria.
+   - change (filtros)  : Recarrega com os filtros aplicados.
+   - click (exportar)  : Exporta a trilha em CSV.
+
+ DEPENDÊNCIAS / PARTIALS INCLUÍDOS:
+   - Styles.html  : CSS da tabela de auditoria.
+   - Api.html     : Chamadas ao backend.
+
+ BOAS PRÁTICAS APLICADAS:
+   - Acesso restrito ao perfil Coordenação.
+   - Trilha de auditoria imutável: apenas leitura no frontend.
+   - Exportação em CSV para arquivamento e conformidade.
+ ============================================================
+-->
+
+<div id='audit-log-view'>
+  <div class='view-header'>
+    <h2>Trilha de Auditoria</h2>
+    <button id='btn-export-audit' type='button' onclick="sfFeature('export.csv',{sheet:'Logs'},{pending:'Exportando CSV...',success:'CSV exportado.',openUrl:true})">Exportar CSV</button>
+  </div>
+  <div class='filters'>
+    <input inputmode="text" type='text' id='filter-audit-user' placeholder='Filtrar por usuário...' autocomplete="name">
+    <select id='filter-audit-action'>
+      <option value=''>Todas as ações</option>
+      <option value='CREATE'>Criação</option>
+      <option value='UPDATE'>Edição</option>
+      <option value='DELETE'>Exclusão</option>
+      <option value='OVERRIDE'>Override de Seleção</option>
+      <option value='LOGIN'>Login</option>
+    </select>
+    <input type='date' id='filter-audit-from'>
+    <input type='date' id='filter-audit-to'>
+  </div>
+  <table id='audit-table'>
+    <thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Detalhes</th></tr></thead>
+    <tbody id='audit-tbody'><tr><td colspan='5'>Carregando...</td></tr></tbody>
+  </table>
+  <div id='pagination-audit'></div>
+</div>
+
+
+

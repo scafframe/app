@@ -1,0 +1,161 @@
+<style id="scafframe-game-assets-style">
+  .scafframe-asset{display:block;max-width:100%;height:auto;object-fit:contain}
+  .scafframe-asset[hidden]{display:none!important}
+  .scafframe-asset--hero{width:100%;aspect-ratio:16/9;max-height:285px;object-fit:cover;border-radius:16px}
+  .scafframe-asset--map{width:min(100%,850px);max-height:190px;margin-inline:auto}
+  .scafframe-asset--avatar{width:clamp(90px,18vw,160px);max-height:175px;filter:drop-shadow(0 12px 18px rgba(0,0,0,.24))}
+  .scafframe-asset--lenses{width:min(100%,820px);max-height:190px;margin-inline:auto}
+  .scafframe-asset--timeline{width:min(100%,760px);max-height:150px;margin-inline:auto}
+  .scafframe-asset--seal{width:clamp(120px,26vw,210px);max-height:210px;margin-inline:auto}
+  .scafframe-assets-status{margin:.5rem 0;color:var(--uo-muted,#b2b9c4);font-size:.82rem}
+  .scafframe-assets-status:empty{display:none}
+  .scafframe-reading-board{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px;margin:0 0 1rem;padding:14px;border:1px solid var(--uo-border,#343941);border-radius:14px;background:var(--uo-panel,#20242b)}
+  .scafframe-reading-board .scafframe-asset--map{grid-column:1/-1;grid-row:1}
+  .scafframe-reading-board .scafframe-asset--avatar{grid-column:2;grid-row:1;align-self:end}
+  .scafframe-reading-board figcaption{grid-column:1/-1;color:var(--uo-muted,#b2b9c4);font-size:.86rem}
+  .scafframe-analysis-guide{margin:14px 0;padding:12px;border:1px dashed var(--uo-border,#343941);border-radius:12px;text-align:center;background:var(--uo-panel,#20242b)}
+  .scafframe-analysis-guide figcaption{margin-top:8px;color:var(--uo-muted,#b2b9c4);font-size:.84rem}
+  #review-form[data-asset-background-ready="true"] .form-section{
+    background-image:linear-gradient(rgba(21,23,28,.92),rgba(21,23,28,.92)),var(--scafframe-question-cards)!important;
+    background-position:center!important;background-size:cover!important
+  }
+  :root[data-theme="light"] #review-form[data-asset-background-ready="true"] .form-section{
+    background-image:linear-gradient(rgba(255,255,255,.86),rgba(255,255,255,.86)),var(--scafframe-question-cards)!important
+  }
+  .scafframe-review-celebration{margin:16px 0;padding:14px;border:1px solid var(--uo-border,#343941);border-radius:14px;text-align:center;background:var(--uo-panel,#20242b)}
+  .scafframe-review-celebration p{margin:.6rem 0 0}
+  @media(max-width:560px){.scafframe-asset--hero{max-height:205px}.scafframe-asset--map{max-height:135px}.scafframe-reading-board .scafframe-asset--avatar{width:84px}}
+  @media(prefers-reduced-motion:reduce){.scafframe-asset{animation:none!important;transition:none!important}}
+</style>
+<script id="scafframe-game-assets-client">
+(function () {
+  'use strict';
+  if (window.ScafframeAssets) return;
+
+  var manifest = { assets:{} };
+  var driveHost = 'drive.google.com';
+  var observer = null;
+
+  function safeUrl(value) {
+    try {
+      var parsed = new URL(String(value || ''));
+      return parsed.protocol === 'https:' && parsed.hostname === driveHost ? parsed.href : '';
+    } catch (_) { return ''; }
+  }
+
+  function url(name) {
+    return safeUrl((manifest.assets || {})[String(name || '')]);
+  }
+
+  function setStatus(message) {
+    document.querySelectorAll('[data-asset-status]').forEach(function(node) { node.textContent = message || ''; });
+  }
+
+  function applyImage(node) {
+    if (!node || !node.dataset || node.dataset.assetPending === 'true' || node.dataset.assetReady === 'true') return Promise.resolve(true);
+    var source = url(node.dataset.assetFile);
+    if (!source) {
+      node.hidden = true;
+      node.dataset.assetReady = 'false';
+      return Promise.resolve(false);
+    }
+    node.dataset.assetPending = 'true';
+    return new Promise(function(resolve) {
+      var settled = false;
+      var timer = window.setTimeout(function() { finish(false); }, 12000);
+      function finish(ok) {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        delete node.dataset.assetPending;
+        node.hidden = !ok || node.hasAttribute('data-asset-deferred');
+        node.dataset.assetReady = ok ? 'true' : 'false';
+        if (!ok) node.removeAttribute('src');
+        resolve(ok);
+      }
+      node.onload = function() { finish(Boolean(node.naturalWidth)); };
+      node.onerror = function() { finish(false); };
+      node.referrerPolicy = 'no-referrer';
+      node.decoding = 'async';
+      node.src = source;
+    });
+  }
+
+  function applyBackground(node) {
+    if (!node || !node.dataset || node.dataset.assetBackgroundReady === 'true') return true;
+    var source = url(node.dataset.assetBackground);
+    if (!source) {
+      node.dataset.assetBackgroundReady = 'false';
+      return false;
+    }
+    node.style.setProperty('--scafframe-question-cards', 'url("' + source.replace(/"/g, '%22') + '")');
+    node.dataset.assetBackgroundReady = 'true';
+    return true;
+  }
+
+  function selectAll(root, selector) {
+    var nodes = [];
+    if (root && root.matches && root.matches(selector)) nodes.push(root);
+    if (root && root.querySelectorAll) nodes = nodes.concat(Array.prototype.slice.call(root.querySelectorAll(selector)));
+    return nodes;
+  }
+
+  function applyAll(root) {
+    root = root || document;
+    selectAll(root, '[data-asset-background]').forEach(applyBackground);
+    return Promise.all(selectAll(root, 'img[data-asset-file]').map(applyImage));
+  }
+
+  function reveal(name) {
+    var selector = 'img[data-asset-file="' + String(name || '').replace(/"/g, '\\"') + '"]';
+    document.querySelectorAll(selector).forEach(function(node) {
+      node.removeAttribute('data-asset-deferred');
+      if (node.dataset.assetReady === 'true') node.hidden = false;
+    });
+  }
+
+  function watchDynamicContent() {
+    if (observer || !window.MutationObserver || !document.body) return;
+    observer = new MutationObserver(function(records) {
+      records.forEach(function(record) {
+        Array.prototype.forEach.call(record.addedNodes || [], function(node) {
+          if (node && node.nodeType === 1) applyAll(node);
+        });
+      });
+    });
+    observer.observe(document.body, { childList:true, subtree:true });
+  }
+
+  function applyManifest(value) {
+    manifest = value || { assets:{} };
+    window.__gameAssetManifest = manifest;
+    document.documentElement.dataset.gameAssetsState = 'loading';
+    setStatus('Carregando elementos visuais do Google Drive…');
+    applyAll(document).then(function(results) {
+      var failed = results.filter(function(ok) { return !ok; }).length;
+      var ready = failed === 0 && manifest.ok === true;
+      document.documentElement.dataset.gameAssetsState = ready ? 'ready' : 'fallback';
+      setStatus(ready ? '' : 'Alguns elementos visuais estão indisponíveis; a leitura crítica continua normalmente.');
+      watchDynamicContent();
+      window.dispatchEvent(new CustomEvent('scafframeassetsready', { detail:manifest }));
+      window.dispatchEvent(new CustomEvent('gameassetsready', { detail:manifest }));
+    });
+  }
+
+  function load() {
+    if (!(window.google && google.script && google.script.run)) {
+      document.documentElement.dataset.gameAssetsState = 'fallback';
+      setStatus('Assets do Drive indisponíveis nesta visualização.');
+      return;
+    }
+    google.script.run.withSuccessHandler(applyManifest).withFailureHandler(function() {
+      document.documentElement.dataset.gameAssetsState = 'fallback';
+      setStatus('Não foi possível acessar os assets do Google Drive.');
+    }).getGameAssetManifest();
+  }
+
+  window.ScafframeAssets = { load:load, url:url, applyManifest:applyManifest, applyAll:applyAll, reveal:reveal };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once:true });
+  else load();
+}());
+</script>

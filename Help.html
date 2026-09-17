@@ -1,0 +1,361 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<!--
+ ============================================================
+ PROJETO  : Scafframe (Cine Clube Horizontes Animados)
+ ESCOLA   : Escola Classe 115 Norte — SEEDF / Brasília-DF
+ ARQUIVO  : Help.html
+ VERSÃO   : 1.1.0
+ ============================================================
+
+ DESCRIÇÃO PRINCIPAL:
+   Central de ajuda e GUIA PEDAGÓGICO do sistema. Além dos guias de uso
+   por perfil e FAQ, traz o fundamento pedagógico do projeto: a rubrica
+   completa com descritores comportamentais por nível, o ciclo semanal
+   de avaliação formativa, o vínculo com a BNCC (Competências Gerais 8 e 9)
+   e orientações éticas de uso (a rubrica não é nota nem rótulo).
+
+ FUNCIONALIDADES:
+   - Guia de uso por perfil: Professor, Estagiário, Coordenação.
+   - Ciclo semanal do projeto (segunda → mediação → sexta → seleção).
+   - Tabela completa da rubrica com os descritores dos 4 indicadores.
+   - Explicação da fórmula de evolução proporcional, com exemplo.
+   - Fundamentos: BNCC e princípios de avaliação formativa.
+   - Orientações éticas e FAQ.
+
+ INTEGRAÇÕES COM O BACKEND (google.script.run):
+   - Nenhuma. Conteúdo estático (cópia fiel de Rubric.gs) para máxima
+     disponibilidade; se os descritores mudarem em Rubric.gs, atualizar aqui.
+
+ BOAS PRÁTICAS APLICADAS:
+   - Conteúdo estático para máxima disponibilidade mesmo sem conexão.
+   - Organização por perfil para relevância imediata ao usuário.
+   - Rubrica documentada por extenso para formação de novos avaliadores.
+ ============================================================
+-->
+
+<div id='help-view'>
+  <h2>Central de Ajuda e Guia Pedagógico</h2>
+
+  <div class='help-section'>
+    <h3>O ciclo semanal do projeto</h3>
+    <p>O Scafframe organiza uma <strong>avaliação formativa</strong> em ciclo curto:</p>
+    <p><strong>Segunda-feira</strong> — o professor registra a <em>linha de base</em> dos 4 indicadores de cada aluno acompanhado.<br>
+       <strong>Durante a semana</strong> — o professor aplica as <em>mediações sugeridas</em> pelo sistema para os níveis observados.<br>
+       <strong>Sexta-feira</strong> — registra a <em>avaliação final</em>; o sistema calcula a evolução proporcional.<br>
+       <strong>Seleção</strong> — os 4 alunos com maior evolução na turma participam da próxima sessão do cineclube, e a sessão (filme + roda de conversa + Mural) realimenta o desenvolvimento socioemocional da semana seguinte.</p>
+  </div>
+
+  <div class='help-section'>
+    <h3>Como usar o sistema</h3>
+    <details><summary>Professor Regente</summary>
+      <p>1. Acesse <strong>Rubricas</strong> toda segunda-feira para registrar a linha de base dos alunos. Leia o <em>descritor</em> de cada nível antes de marcar — marque o nível que descreve o comportamento observado, não a sua expectativa sobre o aluno.</p>
+      <p>2. Anote no campo <strong>Observações</strong> evidências concretas (o que o aluno fez ou disse). Elas sustentam a avaliação na conversa com a família e com a coordenação.</p>
+      <p>3. Durante a semana, aplique a <strong>mediação sugerida</strong> exibida ao marcar cada nível.</p>
+      <p>4. Na sexta-feira, registre a <strong>Avaliação Final</strong> — o sistema mostra a base de segunda ao lado de cada indicador e calcula a evolução em tempo real.</p>
+      <p>5. Acesse <strong>Seleção</strong> para ver os 4 alunos selecionados para a próxima sessão.</p>
+    </details>
+    <details><summary>Estagiário</summary>
+      <p>1. Acesse <strong>Presença</strong> para registrar a presença dos alunos na sessão.</p>
+      <p>2. Acesse <strong>Mural</strong> para registrar as contribuições dos alunos. Priorize registrar pelo menos uma contribuição por aluno — o registro público no Mural é parte da estratégia de <em>pertencimento</em>.</p>
+    </details>
+    <details><summary>Coordenação Pedagógica</summary>
+      <p>1. Acesse <strong>Relatórios</strong> para acompanhar os KPIs do projeto e a tendência de evolução por turma.</p>
+      <p>2. Use os dados como pauta de conversa formativa com os professores — nunca como ranking de alunos ou de turmas.</p>
+      <p>3. Acesse <strong>Configurações</strong> para ajustar os parâmetros do sistema.</p>
+    </details>
+  </div>
+
+  <div class='help-section'>
+    <h3>A Rubrica: descritores por nível</h3>
+    <p>Os descritores abaixo são a <strong>régua comum</strong> de todos os avaliadores (definidos em <code>Rubric.gs</code>). Avalie sempre pelo comportamento observável, não pela impressão geral.</p>
+
+    <details><summary>Autorregulação — como o aluno lida com frustrações, esperas e regras?</summary>
+      <table class='rubric-table'>
+        <tr><th>Nível</th><th>Descritor</th></tr>
+        <tr><td>1</td><td>Reage com explosões frequentes (gritos, choro intenso, agressividade) diante de frustrações mínimas; precisa de intervenção direta do adulto.</td></tr>
+        <tr><td>2</td><td>Demonstra irritação visível e dificuldade de esperar a vez, mas aceita a mediação do adulto na maioria das vezes.</td></tr>
+        <tr><td>3</td><td>Consegue se acalmar com lembretes pontuais; tolera pequenas frustrações sem interromper a atividade.</td></tr>
+        <tr><td>4</td><td>Usa estratégias próprias para se acalmar (respirar, afastar-se, pedir ajuda) na maior parte das situações.</td></tr>
+        <tr><td>5</td><td>Autorregula-se de forma autônoma e chega a ajudar colegas a se acalmarem.</td></tr>
+      </table>
+    </details>
+
+    <details><summary>Cooperação — como participa de tarefas em grupo e divide materiais?</summary>
+      <table class='rubric-table'>
+        <tr><th>Nível</th><th>Descritor</th></tr>
+        <tr><td>1</td><td>Recusa-se a trabalhar em grupo; disputa materiais e desfaz produções dos colegas.</td></tr>
+        <tr><td>2</td><td>Participa do grupo apenas com mediação constante do adulto; divide materiais com resistência.</td></tr>
+        <tr><td>3</td><td>Coopera quando a tarefa lhe interessa; divide materiais quando solicitado.</td></tr>
+        <tr><td>4</td><td>Coopera espontaneamente na maioria das atividades; oferece ajuda quando percebe necessidade.</td></tr>
+        <tr><td>5</td><td>Articula o grupo: distribui tarefas, inclui colegas isolados e media pequenos conflitos.</td></tr>
+      </table>
+    </details>
+
+    <details><summary>Expressão Emocional — reconhece e comunica o que sente?</summary>
+      <table class='rubric-table'>
+        <tr><th>Nível</th><th>Descritor</th></tr>
+        <tr><td>1</td><td>Não nomeia o que sente; expressa-se quase só por atos (retraimento total ou descarga motora).</td></tr>
+        <tr><td>2</td><td>Identifica emoções básicas (feliz/triste/bravo) quando o adulto pergunta diretamente.</td></tr>
+        <tr><td>3</td><td>Nomeia espontaneamente emoções básicas em si mesmo; começa a reconhecê-las nos personagens dos filmes.</td></tr>
+        <tr><td>4</td><td>Diferencia emoções mais sutis (vergonha, ciúme, orgulho) e relaciona o que sente com o que causou.</td></tr>
+        <tr><td>5</td><td>Expressa-se com riqueza por fala, desenho ou escrita e reconhece emoções nos colegas, reagindo com empatia.</td></tr>
+      </table>
+    </details>
+
+    <details><summary>Pertencimento — sente-se parte do grupo e do projeto?</summary>
+      <table class='rubric-table'>
+        <tr><th>Nível</th><th>Descritor</th></tr>
+        <tr><td>1</td><td>Isola-se sistematicamente; evita a sessão ou diz que "não é dele" participar.</td></tr>
+        <tr><td>2</td><td>Fica no espaço coletivo, mas na periferia; participa só quando chamado nominalmente.</td></tr>
+        <tr><td>3</td><td>Participa das atividades coletivas e demonstra interesse pelo cineclube (pergunta pela próxima sessão).</td></tr>
+        <tr><td>4</td><td>Busca os colegas espontaneamente; refere-se ao grupo como "a gente"; contribui no Mural sem ser solicitado.</td></tr>
+        <tr><td>5</td><td>Identifica-se com o projeto, convida e acolhe colegas e propõe ideias para as sessões.</td></tr>
+      </table>
+    </details>
+  </div>
+
+  <div class='help-section'>
+    <h3>Sobre o Algoritmo de Seleção e a Evolução Proporcional</h3>
+    <p>O algoritmo seleciona os 4 alunos com maior <strong>evolução proporcional</strong>, comparando a linha de base de segunda-feira com a avaliação de sexta-feira em cada indicador:</p>
+    <p style='text-align:center'><code>evolução = (final − base) ÷ (5 − base)</code></p>
+    <p>A divisão pelo <em>espaço de crescimento</em> (5 − base) faz a medida valorizar a trajetória de quem partiu de mais longe: um aluno que vai de 2 para 4 evolui <strong>+67%</strong> do seu espaço possível, enquanto outro que vai de 4 para 5 evolui <strong>+100%</strong> do pouco que lhe faltava — ambos são reconhecidos pelo próprio percurso, sem comparação absoluta entre colegas. Quem já está no nível 5 e o mantém recebe 100% (manutenção no teto não é penalizada). O valor final é a média dos 4 indicadores.</p>
+  </div>
+
+  <div class='help-section'>
+    <h3>Fundamentos pedagógicos</h3>
+    <p><strong>BNCC:</strong> o projeto trabalha diretamente as Competências Gerais <strong>8</strong> (autoconhecimento e autocuidado — indicadores Autorregulação e Expressão Emocional) e <strong>9</strong> (empatia e cooperação — indicadores Cooperação e Pertencimento), por meio da fruição estética do cinema de animação (Competência 3, repertório cultural).</p>
+    <p><strong>Avaliação formativa:</strong> a rubrica existe para orientar a <em>mediação do professor</em>, não para classificar a criança. Por isso cada nível marcado gera uma sugestão de mediação para a semana.</p>
+    <p><strong>Uso ético dos dados:</strong></p>
+    <p>• A rubrica <strong>não é nota</strong> e não deve compor o boletim do aluno.<br>
+       • Os níveis individuais <strong>não devem ser divulgados</strong> para a turma ou expostos no Mural — no Mural entram contribuições, nunca pontuações.<br>
+       • Evite rótulos ("aluno nível 1"): os níveis descrevem comportamentos em um período, não a criança.<br>
+       • Quedas de nível são informação valiosa (a semana foi difícil? algo mudou em casa?), não fracasso — leve-as à coordenação como pauta de cuidado.</p>
+  </div>
+
+  <div class='help-section'>
+    <h3>Perguntas frequentes</h3>
+    <details><summary>Esqueci de registrar a linha de base na segunda. Posso registrar depois?</summary>
+      <p>Sim, registre assim que possível na mesma semana, baseando-se no comportamento observado na segunda-feira. Sem linha de base o sistema não aceita a avaliação de sexta — sem ponto de partida não há trajetória a medir.</p>
+    </details>
+    <details><summary>Dois professores avaliam o mesmo aluno de formas diferentes. O que fazer?</summary>
+      <p>Releiam juntos os descritores do nível em disputa e busquem a evidência concreta (o que o aluno fez). Se a divergência persistir, prevalece o registro do professor regente, com a divergência anotada nas Observações.</p>
+    </details>
+    <details><summary>O mesmo aluno é selecionado toda semana. Isso é um problema?</summary>
+      <p>Em geral não — a evolução proporcional naturalmente alterna os selecionados, pois quem evoluiu muito numa semana parte de uma base mais alta na seguinte. Se houver repetição persistente, a coordenação pode usar o campo de <em>override</em> da seleção para garantir circulação, registrando o motivo.</p>
+    </details>
+    <details><summary>Posso usar a rubrica na conversa com a família?</summary>
+      <p>Sim, e é recomendado: mostre a <em>trajetória</em> (de onde partiu, para onde foi) e as observações qualitativas. Evite apresentar números soltos sem os descritores.</p>
+    </details>
+  </div>
+
+  <div class='help-section'>
+    <h3>Documentação Completa</h3>
+    <p><a href='#' target='_blank'>Acessar o Relatório Completo do Projeto no Google Drive</a></p>
+  </div>
+</div>
+
+
+

@@ -1,0 +1,409 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<!--
+ ============================================================
+ PROJETO  : Scafframe (Cine Clube Horizontes Animados)
+ ESCOLA   : Escola Classe 115 Norte — SEEDF / Brasília-DF
+ ARQUIVO  : EvaluationForm.html
+ VERSÃO   : 1.1.0
+ ============================================================
+
+ DESCRIÇÃO PRINCIPAL:
+   Formulário da Rubrica de Evolução Socioemocional. Permite ao professor registrar a linha de base (segunda-feira) e a avaliação de sexta-feira para os 4 indicadores de cada aluno: Autorregulação, Cooperação, Expressão Emocional e Pertencimento, em escala de 1 a 5.
+
+ FUNCIONALIDADES:
+   - Seleção de aluno e semana de referência.
+   - 4 indicadores com escala de 1 a 5 e DESCRITORES COMPORTAMENTAIS por nível,
+     carregados do backend (Rubric.gs) — mesma régua para todos os avaliadores.
+   - Ao marcar um nível, exibe o descritor escolhido e uma SUGESTÃO DE MEDIAÇÃO
+     formativa (o que o professor pode fazer na semana para apoiar o aluno).
+   - Modo 'Linha de Base' (segunda-feira) e modo 'Avaliação Final' (sexta-feira).
+   - Na avaliação final, mostra a nota de base ao lado de cada indicador e
+     calcula a evolução proporcional em tempo real (mesma fórmula do backend).
+   - Campo de observações qualitativas para o professor.
+
+ INTEGRAÇÕES COM O BACKEND (google.script.run via Api.call):
+   - evaluation.rubric       : Descritores e mediações (Rubric.gs).
+   - evaluation.get          : Rubrica existente do aluno na semana.
+   - evaluation.saveBaseline : Salva a linha de base.
+   - evaluation.saveFriday   : Salva a sexta e fecha a EvolucaoProporcional.
+   - student.list            : Popula o dropdown de alunos.
+
+ BOAS PRÁTICAS APLICADAS:
+   - Descritores observáveis em vez de números soltos: reduz subjetividade.
+   - Feedback formativo imediato: a rubrica orienta a ação do professor,
+     não apenas classifica o aluno.
+   - Evolução proporcional ao espaço de crescimento (Rubric.gs).
+ ============================================================
+-->
+
+<div id='evaluation-form-view'>
+  <h2>Rubrica de Evolução Socioemocional</h2>
+  <p class='form-hint'>Marque o nível cujo <strong>descritor</strong> melhor descreve o comportamento observado nesta semana. A rubrica acompanha a trajetória do aluno — não é nota, nem comparação entre colegas.</p>
+  <form id='evaluation-form'>
+    <div class='form-row'>
+      <div class='form-group'><label>Aluno *</label><select id='ef-aluno' required><option value=''>Selecione...</option></select></div>
+      <div class='form-group'><label>Semana *</label><input type='week' id='ef-semana' required></div>
+      <div class='form-group'><label>Momento</label>
+        <select id='ef-momento'><option value='base'>Linha de Base (Segunda)</option><option value='sexta'>Avaliação Final (Sexta)</option></select>
+      </div>
+    </div>
+    <div id='rubric-indicators' class='rubric-indicators'></div>
+    <div id='evolution-preview' class='hidden'><strong>Evolução Calculada: <span id='evolution-value'>—</span></strong>
+      <small> (média da evolução proporcional ao espaço de crescimento nos 4 indicadores)</small>
+    </div>
+    <div class='form-group'><label>Observações qualitativas</label>
+      <textarea id='ef-obs' placeholder='Registre evidências concretas: o que o aluno fez ou disse que justifica os níveis marcados?'></textarea>
+    </div>
+    <div class='form-actions'>
+      <button type='submit'>Salvar Rubrica</button>
+      <button type='button' onclick="Router.navigate('/rubricas')">Cancelar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function() {
+    var rubric = null;       // { indicators, scaleMax } vindo de evaluation.rubric
+    var existing = null;     // rubrica já salva do aluno/semana selecionados
+    var existingRequestVersion = 0;
+
+    function $(id) { return document.getElementById(id); }
+    function momento() { return $('ef-momento').value; }
+
+    // ---- Renderização --------------------------------------------------
+    function renderIndicators() {
+      var box = $('rubric-indicators');
+      box.innerHTML = '';
+      rubric.indicators.forEach(function(ind) {
+        var div = document.createElement('div');
+        div.className = 'indicator';
+        var opts = '';
+        for (var n = 1; n <= rubric.scaleMax; n++) {
+          opts += '<label class="scale-opt" title="' + ind.levels[n].replace(/"/g, '&quot;') + '">' +
+                  '<input type="radio" name="sc-' + ind.key + '" value="' + n + '"> ' + n + '</label>';
+        }
+        div.innerHTML =
+          '<label class="indicator-title">' + ind.label +
+            ' <span class="baseline-badge hidden" id="base-' + ind.key + '"></span></label>' +
+          '<p class="indicator-question">' + ind.question + '</p>' +
+          '<div class="scale" data-field="' + ind.key + '">' + opts + '</div>' +
+          '<p class="descriptor" id="desc-' + ind.key + '">Passe o mouse sobre um nível para ver o descritor; marque o que melhor descreve o aluno.</p>' +
+          '<p class="mediation hidden" id="med-' + ind.key + '"></p>';
+        box.appendChild(div);
+      });
+      box.addEventListener('change', onScoreChange);
+    }
+
+    function onScoreChange(e) {
+      if (e.target.type !== 'radio') return;
+      var key = e.target.name.replace('sc-', '');
+      var n = Number(e.target.value);
+      var ind = rubric.indicators.filter(function(i) { return i.key === key; })[0];
+      $('desc-' + key).textContent = 'Nível ' + n + ': ' + ind.levels[n];
+      var med = $('med-' + key);
+      med.textContent = '💡 Mediação sugerida: ' + ind.mediation[n];
+      med.classList.remove('hidden');
+      updateEvolutionPreview();
+    }
+
+    // ---- Evolução em tempo real (espelha Rubric.evolution do backend) --
+    function evolution(base, fin) {
+      var MAX = rubric.scaleMax;
+      base = Number(base); fin = Number(fin);
+      if (!base || !fin) return null;
+      if (base >= MAX) return fin >= MAX ? 1 : (fin - base) / (MAX - 1);
+      return (fin - base) / (MAX - base);
+    }
+
+    function updateEvolutionPreview() {
+      if (momento() !== 'sexta' || !existing) return;
+      var vals = [], complete = true;
+      rubric.indicators.forEach(function(ind) {
+        var sel = document.querySelector('input[name="sc-' + ind.key + '"]:checked');
+        var ev = sel ? evolution(existing[ind.key + '_Base'], sel.value) : null;
+        if (ev === null) complete = false; else vals.push(ev);
+      });
+      $('evolution-preview').classList.remove('hidden');
+      if (!complete) { $('evolution-value').textContent = '— (marque os 4 indicadores)'; return; }
+      var avg = vals.reduce(function(a, b) { return a + b; }, 0) / vals.length;
+      $('evolution-value').textContent = (avg >= 0 ? '+' : '') + Math.round(avg * 100) + '%';
+    }
+
+    // ---- Carga de dados -------------------------------------------------
+    function loadStudents() {
+      return Api.call('student.list').then(function(list) {
+        (list || []).forEach(function(s) {
+          var o = document.createElement('option');
+          o.value = s.ID; o.textContent = s.Nome + (s.Turma ? ' — ' + s.Turma : '');
+          $('ef-aluno').appendChild(o);
+        });
+      });
+    }
+
+    function loadExisting() {
+      var requestVersion = ++existingRequestVersion;
+      existing = null;
+      var alunoId = $('ef-aluno').value, semana = $('ef-semana').value;
+      rubric.indicators.forEach(function(ind) { $('base-' + ind.key).classList.add('hidden'); });
+      $('evolution-preview').classList.add('hidden');
+      if (!alunoId || !semana) return;
+      Api.call('evaluation.get', { alunoId: alunoId, semana: semana }).then(function(rec) {
+        if (requestVersion !== existingRequestVersion ||
+            $('ef-aluno').value !== alunoId || $('ef-semana').value !== semana) return;
+        existing = rec;
+        if (!rec) return;
+        // Mostra a base ao lado de cada indicador no modo sexta — o professor
+        // avalia trajetória, então precisa ver de onde o aluno partiu.
+        rubric.indicators.forEach(function(ind) {
+          var b = rec[ind.key + '_Base'];
+          if (b) {
+            var badge = $('base-' + ind.key);
+            badge.textContent = 'base: ' + b;
+            badge.classList.remove('hidden');
+          }
+        });
+        updateEvolutionPreview();
+      }).catch(function() {
+        // O Api já apresenta o erro; uma resposta obsoleta não altera a seleção atual.
+      });
+    }
+
+    // ---- Submit ----------------------------------------------------------
+    $('evaluation-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var scores = {}, missing = [];
+      rubric.indicators.forEach(function(ind) {
+        var sel = document.querySelector('input[name="sc-' + ind.key + '"]:checked');
+        if (!sel) missing.push(ind.label); else scores[ind.key] = Number(sel.value);
+      });
+      if (missing.length) { ModalAlert.show('error', 'Rubrica incompleta', 'Marque um nível para: ' + missing.join(', ') + '.'); return; }
+      var action = momento() === 'base' ? 'evaluation.saveBaseline' : 'evaluation.saveFriday';
+      Api.call(action, { alunoId: $('ef-aluno').value, semana: $('ef-semana').value, scores: scores, observacoes: $('ef-obs').value })
+        .then(function() {
+          ModalAlert.show('success', 'Rubrica salva',
+            momento() === 'base'
+              ? 'Linha de base registrada. Use as mediações sugeridas durante a semana e retorne na sexta-feira.'
+              : 'Avaliação final registrada e evolução calculada.');
+          Router.navigate('/rubricas');
+        })
+        .catch(function() { /* erro já exibido pelo Api */ });
+    });
+
+    $('ef-aluno').addEventListener('change', loadExisting);
+    $('ef-semana').addEventListener('change', loadExisting);
+    $('ef-momento').addEventListener('change', updateEvolutionPreview);
+
+    // ---- Init ------------------------------------------------------------
+    Api.call('evaluation.rubric').then(function(r) {
+      rubric = r;
+      renderIndicators();
+      return loadStudents();
+    });
+  })();
+</script>
+
+
+

@@ -1,0 +1,269 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<!--
+ ============================================================
+ PROJETO  : Cine Clube Horizontes Animados
+ ESCOLA   : Escola Classe 115 Norte — SEEDF / Brasília-DF
+ ARQUIVO  : ReportView.html
+ VERSÃO   : 1.0.0
+ ============================================================
+
+ DESCRIÇÃO PRINCIPAL:
+   Visualização de relatórios gerenciais. Permite à Coordenação Pedagógica filtrar e visualizar dados de evolução comportamental, presença e KPIs pedagógicos por turma, período e indicador. Inclui opção de exportação em PDF.
+
+ FUNCIONALIDADES:
+   - Filtros: turma, período (semana/mês/ciclo piloto), indicador socioemocional.
+   - Tabela de evolução por turma com médias e percentuais.
+   - Gráficos de barras e linhas com os dados filtrados.
+   - Relatório do ciclo piloto de 4 semanas com comparativo linha de base vs atual.
+   - Botão 'Exportar PDF' para salvar no Google Drive.
+   - Botão 'Enviar para Coordenação' para enviar por e-mail.
+
+ INTEGRAÇÕES COM O BACKEND (google.script.run):
+   - ReportController.gs  : Ação 'report.getEvolutionReport' para os dados.
+   - ReportController.gs  : Ação 'report.getPilotReport' para o relatório do piloto.
+   - ExportService.gs     : Ação 'export.report' para gerar o PDF.
+   - EmailService.gs      : Ação 'email.sendReport' para enviar por e-mail.
+
+ EVENTOS E INTERAÇÕES:
+   - change (filtros)   : Recarrega os dados com os filtros aplicados.
+   - click (exportar)   : Gera o PDF e salva no Drive.
+   - click (enviar)     : Envia o relatório por e-mail para a coordenação.
+
+ DEPENDÊNCIAS / PARTIALS INCLUÍDOS:
+   - DashboardCharts.html : Gráficos dos dados do relatório.
+   - ModalAlert.html      : Feedback de exportação.
+   - Styles.html          : CSS da tela de relatórios.
+   - Api.html             : Chamadas ao backend.
+
+ BOAS PRÁTICAS APLICADAS:
+   - Acesso restrito ao perfil Coordenação.
+   - Relatório do piloto alinhado ao cronograma de 4 semanas do projeto.
+   - Exportação para PDF integrada ao Google Drive para compartilhamento.
+ ============================================================
+-->
+
+<div id='report-view'>
+  <div class='view-header'>
+    <h2>Relatórios Pedagógicos</h2>
+    <div>
+      <button id='btn-export-report' type='button' onclick="sfFeature('export.pdf',{title:'Relatório Pedagógico',subtitle:'Indicadores socioemocionais'},{pending:'Gerando PDF...',success:'PDF gerado.',openUrl:true})">Exportar PDF</button>
+      <button id='btn-send-report' type='button' onclick="var to=prompt('Enviar relatório para qual e-mail?');if(to)sfFeature('email.send',{to:to,subject:'Relatório Pedagógico — Cine Clube',body:'Segue o relatório pedagógico gerado pelo painel.'},{pending:'Enviando...',success:'E-mail enviado.'})">Enviar por E-mail</button>
+    </div>
+  </div>
+  <div class='filters'>
+    <select id='filter-report-turma'><option value=''>Todas as turmas</option></select>
+    <select id='filter-report-period'>
+      <option value='week'>Semana Atual</option>
+      <option value='month'>Mês Atual</option>
+      <option value='pilot'>Ciclo Piloto (4 semanas)</option>
+    </select>
+  </div>
+  <div id='report-charts'></div>
+  <div id='report-table-container'></div>
+</div>
+
+
+

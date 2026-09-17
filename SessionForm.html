@@ -1,0 +1,273 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<!--
+ ============================================================
+ PROJETO  : Cine Clube Horizontes Animados
+ ESCOLA   : Escola Classe 115 Norte — SEEDF / Brasília-DF
+ ARQUIVO  : SessionForm.html
+ VERSÃO   : 1.0.0
+ ============================================================
+
+ DESCRIÇÃO PRINCIPAL:
+   Formulário de agendamento de sessões do Cine Clube. Permite selecionar data, horário, filme da curadoria e turma participante. Verifica conflito de horários antes de salvar e integra com o Google Calendar.
+
+ FUNCIONALIDADES:
+   - Campos: Data, Horário, Filme (dropdown da curadoria), Turma, Sala.
+   - Verificação de conflito de horário em tempo real ao selecionar data/hora.
+   - Filtro de filmes por duração adequada (≤40 min) e disponibilidade.
+   - Campo de Observações Logísticas para notas do professor.
+   - Criação automática de evento no Google Calendar ao salvar.
+   - Envio automático de notificação por e-mail ao professor da turma.
+
+ INTEGRAÇÕES COM O BACKEND (google.script.run):
+   - SessionController.gs : Ação 'session.create' para agendar.
+   - SessionController.gs : Ação 'session.checkConflict' para verificar conflito.
+   - MovieController.gs   : Ação 'movie.findAvailable' para o dropdown de filmes.
+   - CalendarService.gs   : Criação automática do evento no Calendar.
+   - EmailService.gs      : Notificação automática ao professor.
+
+ EVENTOS E INTERAÇÕES:
+   - change (data/hora) : Verifica conflito de horário em tempo real.
+   - submit (form)      : Agenda a sessão e cria o evento no Calendar.
+   - click (cancelar)   : Volta para SessionList.
+
+ DEPENDÊNCIAS / PARTIALS INCLUÍDOS:
+   - MovieList.html   : Dropdown de filmes disponíveis.
+   - ModalAlert.html  : Feedback de conflito de horário.
+   - Styles.html      : CSS do formulário.
+   - Api.html         : Chamadas ao backend.
+
+ BOAS PRÁTICAS APLICADAS:
+   - Verificação de conflito em tempo real para evitar sobreposição.
+   - Filtro automático de filmes por duração adequada à sessão de 40 min.
+   - Integração transparente com Google Calendar sem ação adicional do usuário.
+ ============================================================
+-->
+
+<div id='session-form-view'>
+  <h2>Agendar Nova Sessão</h2>
+  <form id='session-form' onsubmit="event.preventDefault();">
+    <div class='form-row'>
+      <div class='form-group'><label>Data *</label><input type='date' id='sf2-data' required></div>
+      <div class='form-group'><label>Horário *</label><input type='time' id='sf2-horario' required></div>
+    </div>
+    <div id='conflict-warning' class='warning hidden'><i class="material-icons cdx-mi" aria-hidden="true">warning</i> Conflito de horário detectado.</div>
+    <div class='form-group'><label>Filme *</label>
+      <select id='sf2-filme' required><option value=''>Carregando filmes...</option></select>
+    </div>
+    <div class='form-row'>
+      <div class='form-group'><label>Turma *</label><input inputmode="text" type='text' id='sf2-turma' required autocomplete="name"></div>
+      <div class='form-group'><label>Sala</label><input inputmode="text" type='text' id='sf2-sala' placeholder='Ex: Auditório' autocomplete="name"></div>
+    </div>
+    <div class='form-group'><label>Observações Logísticas</label><textarea id='sf2-obs'></textarea></div>
+    <div class='form-actions'>
+      <button type='submit'>Agendar Sessão</button>
+      <button type='button' onclick="Router.navigate('/sessoes')">Cancelar</button>
+    </div>
+  </form>
+</div>
+
+
+
