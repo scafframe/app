@@ -11,6 +11,17 @@ O **Scafframe** é um sistema de gestão pedagógica e curadoria analítica para
 
 Todo o CRUD é processado em uma **Google Planilha central**, cujo ID é configurado na variável de ambiente `SPREADSHEETS_ID` nas propriedades do script.
 
+## Workflow básico do produto
+
+O percurso oficial é `professor entra → identifica sessão, estudante e filme →
+estudante responde às 25 questões → sistema gera rascunho → estudante e professor
+revisam → professor confirma e salva → roteiro orienta a roda de conversa`.
+
+Papéis, regras incontornáveis, validação, publicação, smoke test e evidências
+estão em [WORKFLOW_BASICO.md](WORKFLOW_BASICO.md). Use
+`npm run test:workflow` para o contrato focado e `npm run check` para toda a
+porta local de qualidade.
+
 ---
 
 ## Estrutura da Pasta Raiz
@@ -154,3 +165,41 @@ de avaliação formativa de ponta a ponta:
 ---
 
 *Arquitetura Scafframe — Suporte e Moldura para a Evolução Socioemocional.*
+
+
+---
+
+## Mapeamento de Schema da Planilha (item 6 — pré-requisito para fixtures analíticos)
+
+> **Status do catálogo AI:** vazio — o `SchemaService` atual não declara `PROJECT_SCHEMA_DEFINITIONS` nem expõe entidades analíticas. O serviço só gerencia criação de usuários administrativos sintéticos.
+
+### Abas declaradas no SchemaService
+
+O `SchemaService` do Scafframe não declara um catálogo de entidades. As abas são inferidas a partir do uso em `UserDAO` e demais DAOs do projeto:
+
+| Aba (inferida via UserDAO) | Tipo | Colunas declaradas |
+|---|---|---|
+| Aba de usuários (via `UserDAO`) | Autenticação | `nome`, `login`, `senha`, `perfil`, `email` |
+
+> As demais abas (filmes, sessões, votações, reservas) são gerenciadas pelos DAOs específicos do Scafframe e **não estão documentadas no SchemaService**.
+
+### Semântica das colunas conhecidas
+
+**Usuários (via `UserDAO`)**:
+- `login` / `senha`: credenciais em texto plano (decisão do projeto).
+- `perfil`: papel do usuário (`"Coordenacao"` para administradores).
+- `email`: formato `loginXX@escola.edu.br` para contas sintéticas.
+
+### Entidades pendentes de mapeamento analítico
+
+O Scafframe é um Cine Clube com gestão de filmes, sessões e participação de alunos. As entidades de domínio do projeto não estão no `SchemaService`.
+
+| Entidade esperada | Por que ausente | O que precisa ser feito |
+|---|---|---|
+| Filmes / Acervo | Não declarada no SchemaService | Mapear aba real da planilha e declarar com colunas (título, diretor, gênero, duração, classificação) |
+| Sessões de exibição | Não declarada | Declarar entidade com data, filme, sala, capacidade |
+| Reservas / Inscrições | Não declarada | Declarar entidade com FK aluno + sessão, status |
+| Avaliações / Fichas de análise | Não declarada | Declarar entidade de avaliação filmográfica por aluno |
+| Presença | Não declarada | Declarar entidade de presença confirmada por sessão |
+
+> **Ação necessária para o item 6:** Elevar o `SchemaService` do Scafframe ao padrão da frota — declarar `PROJECT_SCHEMA_DEFINITIONS` com as entidades reais do cine clube antes de criar qualquer fixture. O serviço atual é vestigial (só cria admins) e não reflete a estrutura de dados real do projeto.
